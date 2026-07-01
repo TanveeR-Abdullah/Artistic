@@ -8,17 +8,169 @@ datasource db {
 
 enum Role {
   USER
-  ARTIST
   ADMIN
 }
 
 model User {
-  id            Int      @id @default(autoincrement()) 
-  name          String?
-  email         String   @unique
-  emailVerified Boolean  @default(false)
-  image         String?
-  role          Role     @default(USER)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(cuid())
+  name      String
+  username  String   @unique
+  email     String   @unique
+  image      String?
+  bio        String?
+
+  role      Role     @default(USER)
+
+  artworks  Artwork[]
+
+  orders    Order[]
+
+  wishlist  Wishlist[]
+
+  reviews   Review[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+enum ArtworkStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SaleStatus {
+  NOT_FOR_SALE
+  FOR_SALE
+  SOLD
+}
+
+model Artwork {
+  id          String @id @default(cuid())
+
+  title       String
+  slug        String @unique
+
+  description String
+
+  price       Decimal? @db.Decimal(10,2)
+
+  status      ArtworkStatus @default(DRAFT)
+
+  saleStatus  SaleStatus @default(NOT_FOR_SALE)
+
+  userId      String
+
+  artist      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  images      ArtworkImage[]
+
+  reviews     Review[]
+
+  wishlists   Wishlist[]
+
+  OrderItem  OrderItem[]
+
+  categoryId  String
+  
+  category    Category @relation(fields: [categoryId], references: [id])
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+
+model ArtworkImage {
+  id        String @id @default(cuid())
+
+  imageUrl  String
+
+  artworkId String
+
+  artwork   Artwork @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+}
+
+
+model Category {
+
+  id String @id @default(cuid())
+
+  name String
+
+  slug String @unique
+
+  artworks Artwork[]
+}
+
+
+model Wishlist {
+
+  id String @id @default(cuid())
+
+  userId String
+
+  artworkId String
+
+  user User @relation(fields: [userId], references: [id])
+
+  artwork Artwork @relation(fields: [artworkId], references: [id])
+
+  @@unique([userId, artworkId])
+}
+
+
+
+
+model Review {
+
+  id String @id @default(cuid())
+
+  rating Int
+
+  comment String
+
+  userId String
+
+  artworkId String
+
+  user User @relation(fields: [userId], references: [id])
+
+  artwork Artwork @relation(fields: [artworkId], references: [id])
+
+  @@unique([userId, artworkId])
+}
+
+
+model Order {
+
+  id String @id @default(cuid())
+
+  buyerId String
+
+  buyer User @relation(fields: [buyerId], references: [id])
+
+  items OrderItem[]
+
+  total Decimal @db.Decimal(10,2)
+
+  createdAt DateTime @default(now())
+}
+
+
+model OrderItem {
+
+  id String @id @default(cuid())
+
+  orderId String
+
+  artworkId String
+
+  quantity Int
+
+  price Decimal @db.Decimal(10,2)
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  artwork Artwork @relation(fields: [artworkId], references: [id])
 }
