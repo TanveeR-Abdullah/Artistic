@@ -1,3 +1,7 @@
+// ======================================================
+// Generator & Datasource
+// ======================================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -6,33 +10,15 @@ datasource db {
   provider = "postgresql"
 }
 
+
+// ======================================================
+// Enums
+// ======================================================
+
 enum Role {
   USER
   ADMIN
 }
-
-model User {
-  id        String   @id @default(cuid())
-  name      String
-  username  String   @unique
-  email     String   @unique
-  image      String?
-  bio        String?
-
-  role      Role     @default(USER)
-
-  artworks  Artwork[]
-
-  orders    Order[]
-
-  wishlist  Wishlist[]
-
-  reviews   Review[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
 
 enum ArtworkStatus {
   DRAFT
@@ -46,131 +32,363 @@ enum SaleStatus {
   SOLD
 }
 
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+// ======================================================
+// Better Auth Models
+// ======================================================
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token      String   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  ipAddress String?
+  userAgent String?
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String   @id
+  accountId             String
+  providerId            String
+
+  userId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accessToken           String?
+  refreshToken          String?
+
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+
+  scope                 String?
+  idToken               String?
+
+  password              String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@unique([providerId, accountId])
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([identifier, value])
+}
+
+// ======================================================
+// User
+// ======================================================
+
+model User {
+  id       String @id @default(cuid())
+
+  name     String
+  username String @unique
+
+  email    String @unique
+
+  image    String?
+  bio      String?
+
+  role Role @default(USER)
+
+  emailVerified Boolean @default(false)
+
+  // Better Auth
+  sessions Session[]
+  accounts Account[]
+
+  // Marketplace
+  artworks  Artwork[]
+
+  orders    Order[]
+
+  wishlists Wishlist[]
+
+  reviews   Review[]
+
+  addresses Address[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([username])
+}
+
+
+// ======================================================
+// Category
+// ======================================================
+
+model Category {
+  id          String @id @default(cuid())
+
+  name        String
+  slug        String @unique
+
+  description String?
+  image       String?
+
+  artworks    Artwork[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+}
+
+// ======================================================
+// Artwork
+// ======================================================
+
 model Artwork {
   id          String @id @default(cuid())
 
   title       String
   slug        String @unique
 
-  description String
+  description String @db.Text
 
-  price       Decimal? @db.Decimal(10,2)
+  // Price is optional because users may upload
+  // artwork without selling it.
+  price       Decimal? @db.Decimal(10, 2)
 
+  // Inventory
+  stock       Int @default(1)
+
+  // Showcase on homepage
+  featured    Boolean @default(false)
+
+  // Analytics
+  views       Int @default(0)
+
+  // Status
   status      ArtworkStatus @default(DRAFT)
-
   saleStatus  SaleStatus @default(NOT_FOR_SALE)
 
+  // Artist
   userId      String
-
   artist      User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  images      ArtworkImage[]
-
-  reviews     Review[]
-
-  wishlists   Wishlist[]
-
-  OrderItem  OrderItem[]
-
+  // Category
   categoryId  String
-  
   category    Category @relation(fields: [categoryId], references: [id])
+
+  // Relations
+  images      ArtworkImage[]
+  reviews     Review[]
+  wishlists   Wishlist[]
+  orderItems  OrderItem[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([categoryId])
+  @@index([status])
+  @@index([saleStatus])
+  @@index([featured])
+  @@index([createdAt])
+  @@index([price])
 }
 
+// ======================================================
+// Artwork Images
+// ======================================================
 
 model ArtworkImage {
-  id        String @id @default(cuid())
+  id          String @id @default(cuid())
 
-  imageUrl  String
+  url         String
 
-  artworkId String
+  alt         String?
 
-  artwork   Artwork @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  isPrimary   Boolean @default(false)
+
+  sortOrder   Int @default(0)
+
+  artworkId   String
+  artwork     Artwork @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@index([artworkId])
 }
 
+// ======================================================
+// Address
+// ======================================================
 
-model Category {
-
-  id String @id @default(cuid())
-
-  name String
-
-  slug String @unique
-
-  artworks Artwork[]
-}
-
-
-model Wishlist {
-
+model Address {
   id String @id @default(cuid())
 
   userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  artworkId String
+  fullName String
+  phone String
 
-  user User @relation(fields: [userId], references: [id])
+  country String
+  state String?
+  city String
 
-  artwork Artwork @relation(fields: [artworkId], references: [id])
+  addressLine1 String
+  addressLine2 String?
 
-  @@unique([userId, artworkId])
+  postalCode String?
+
+  orders Order[]
+
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
+// ======================================================
+// Wishlist
+// ======================================================
 
+model Wishlist {
+  id String @id @default(cuid())
 
+  userId String
+  artworkId String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  artwork Artwork @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, artworkId])
+
+  @@index([userId])
+  @@index([artworkId])
+}
+
+// ======================================================
+// Review
+// ======================================================
 
 model Review {
-
   id String @id @default(cuid())
 
   rating Int
 
-  comment String
+  title String?
+
+  comment String? @db.Text
 
   userId String
-
   artworkId String
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  artwork Artwork @relation(fields: [artworkId], references: [id])
+  artwork Artwork @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([userId, artworkId])
+
+  @@index([userId])
+  @@index([artworkId])
 }
 
+// ======================================================
+// Order
+// ======================================================
 
 model Order {
-
   id String @id @default(cuid())
 
   buyerId String
+  buyer User @relation(fields: [buyerId], references: [id], onDelete: Cascade)
 
-  buyer User @relation(fields: [buyerId], references: [id])
+  addressId String?
+  address Address? @relation(fields: [addressId], references: [id], onDelete: SetNull)
 
-  items OrderItem[]
+  status OrderStatus @default(PENDING)
+
+  paymentStatus PaymentStatus @default(PENDING)
+
+  subtotal Decimal @db.Decimal(10,2)
+
+  shipping Decimal @default(0) @db.Decimal(10,2)
 
   total Decimal @db.Decimal(10,2)
 
+  items OrderItem[]
+
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([buyerId])
+  @@index([status])
+  @@index([paymentStatus])
 }
 
+// ======================================================
+// Order Item
+// ======================================================
 
 model OrderItem {
-
   id String @id @default(cuid())
 
   orderId String
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
   artworkId String
-
-  quantity Int
-
-  price Decimal @db.Decimal(10,2)
-
-  order Order @relation(fields: [orderId], references: [id])
-
   artwork Artwork @relation(fields: [artworkId], references: [id])
+
+  quantity Int @default(1)
+
+  unitPrice Decimal @db.Decimal(10,2)
+
+  totalPrice Decimal @db.Decimal(10,2)
+
+  // Snapshot
+  artworkTitle String
+
+  artworkImage String?
+
+  createdAt DateTime @default(now())
+
+  @@index([orderId])
+  @@index([artworkId])
 }
