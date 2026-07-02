@@ -26,14 +26,14 @@ export function Navbar() {
           </button>
 
           <Link
-            href="/login"
+            href="/FrontEnd/auth/Login"
             className="rounded-lg px-4 py-2 text-gray-700 transition hover:text-[#8B5E3C]"
           >
             Login
           </Link>
 
           <Link
-            href="/register"
+            href="/FrontEnd/auth/Register"
             className="rounded-xl bg-[#8B5E3C] px-5 py-2.5 text-white transition hover:bg-[#6D472C]"
           >
             Sign Up

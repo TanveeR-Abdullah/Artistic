@@ -105,31 +105,16 @@ model Verification {
 
   @@unique([identifier, value])
 }
-
-// ======================================================
-// User
-// ======================================================
-
 model User {
   id       String @id @default(cuid())
-
-  name     String
-  username String @unique
-
   email    String @unique
+  role     Role
 
-  image    String?
-  bio      String?
+  profile  Profile?
 
-  role Role @default(USER)
-
-  emailVerified Boolean @default(false)
-
-  // Better Auth
   sessions Session[]
   accounts Account[]
 
-  // Marketplace
   artworks  Artwork[]
 
   orders    Order[]
@@ -140,12 +125,67 @@ model User {
 
   addresses Address[]
 
+  Cart    Cart[]
+}
+
+model Profile {
+  id        String @id @default(cuid())
+
+  userId    String @unique
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  displayName String
+  username    String @unique
+
+  avatar      String?
+  banner      String?
+
+  bio         String? @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-
-  @@index([email])
-  @@index([username])
 }
+
+// ======================================================
+// User
+// ======================================================
+
+// model User {
+//   id       String @id @default(cuid())
+
+//   name     String
+//   username String @unique
+
+//   email    String @unique
+
+//   image    String?
+//   bio      String?
+
+//   role Role @default(USER)
+
+//   emailVerified Boolean @default(false)
+
+//   // Better Auth
+//   sessions Session[]
+//   accounts Account[]
+
+//   // Marketplace
+//   artworks  Artwork[]
+
+//   orders    Order[]
+
+//   wishlists Wishlist[]
+
+//   reviews   Review[]
+
+//   addresses Address[]
+
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   @@index([email])
+//   @@index([username])
+// }
 
 
 // ======================================================
@@ -211,6 +251,8 @@ model Artwork {
   reviews     Review[]
   wishlists   Wishlist[]
   orderItems  OrderItem[]
+  CartItem    CartItem[]
+  ArtworkTag  ArtworkTag[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -355,6 +397,8 @@ model Order {
 
   items OrderItem[]
 
+  payment Payment[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -391,4 +435,69 @@ model OrderItem {
 
   @@index([orderId])
   @@index([artworkId])
+}
+
+model Cart {
+  id        String   @id @default(cuid())
+
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  items     CartItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+
+  artworkId String
+  artwork   Artwork  @relation(fields: [artworkId], references: [id])
+
+  quantity  Int      @default(1)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cartId, artworkId])
+}
+
+model Tag {
+  id String @id @default(cuid())
+
+  name String @unique
+
+  artworks ArtworkTag[]
+}
+
+model ArtworkTag {
+  artworkId String
+  tagId String
+
+  artwork Artwork @relation(fields: [artworkId], references: [id], onDelete: Cascade)
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([artworkId, tagId])
+}
+
+model Payment {
+  id String @id @default(cuid())
+
+  orderId String @unique
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  provider String
+
+  transactionId String?
+
+  amount Decimal @db.Decimal(10,2)
+
+  status PaymentStatus
+
+  createdAt DateTime @default(now())
 }
